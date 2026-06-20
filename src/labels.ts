@@ -31,10 +31,10 @@ export const LABELS: LabelDef[] = [
     id: 'about',
     text: 'about',
     dir: new THREE.Vector3(0.92, 0.32, 0.35).normalize(),
-    eyebrow: 'who · min min',
+    eyebrow: 'who · min min latt',
     title: "Let's <em>build</em> together.",
     body:
-      "I'm Min Min — an AI Enthusiast with 4 years of hands-on AWS (no cert, all production), " +
+      "I'm Min Min Latt — an AI Enthusiast with 4 years of hands-on AWS (no cert, all production), " +
       "6 years as an EOR at a Japanese company sharpening a near-obsessive eye for detail, " +
       "and 1.5 years deep in the AI-agent rabbit hole. I like restraint, legibility, " +
       "and shipping things that quietly do their job.",
