@@ -5,6 +5,11 @@
       <stop offset="45%" stop-color="#60a5fa" stop-opacity="0.18" />
       <stop offset="100%" stop-color="#60a5fa" stop-opacity="0" />
     </radialGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="55%" stop-color="#60a5fa" stop-opacity="0" />
+      <stop offset="80%" stop-color="#60a5fa" stop-opacity="0.175" />
+      <stop offset="100%" stop-color="#60a5fa" stop-opacity="0" />
+    </radialGradient>
     <radialGradient id="sphere" cx="50%" cy="42%" r="60%">
       <stop offset="0%" stop-color="#dbe8ff" />
       <stop offset="40%" stop-color="#60a5fa" />
@@ -21,6 +26,8 @@
 
   <!-- orbiting sphere motif -->
   <g transform="translate(900 315)">
+    <!-- halo ring (half power) -->
+    <circle r="240" fill="url(#halo)" />
     <circle r="170" fill="url(#sphere)" opacity="0.85" />
     <circle r="170" fill="none" stroke="#60a5fa" stroke-opacity="0.35" stroke-width="1.5" />
     <ellipse rx="170" ry="58" fill="none" stroke="#cbd5e1" stroke-opacity="0.25" stroke-width="1.2" />
