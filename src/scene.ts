@@ -169,8 +169,9 @@ export function createScene(opts: {
   container: HTMLElement
   onLabelClick: (id: string) => void
   onMetrics?: (m: SceneMetrics) => void
+  onLamp?: (value: number) => void
 }): SceneAPI {
-  const { canvas, container, onLabelClick, onMetrics } = opts
+  const { canvas, container, onLabelClick, onMetrics, onLamp } = opts
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   const renderer = new THREE.WebGLRenderer({
@@ -372,6 +373,10 @@ export function createScene(opts: {
   let morph = 0
   let morphTarget = 0
   let boardOpen = false
+  // Lamp charge — the interaction signal that drives the pendant glow. Sphere
+  // hover/drag/tap pumps it; idle cools it. Latched to full while a board is
+  // open. Published to the host each frame via onLamp.
+  let lampCharge = 0
   const mouse = { x: 0, y: 0, tx: 0, ty: 0 }
   const canvasPointer = { x: 0, y: 0, inside: false, down: false }
   const raycaster = new THREE.Raycaster()
@@ -425,6 +430,7 @@ export function createScene(opts: {
       container.setPointerCapture(e.pointerId)
       lastPointer = { x: e.clientX, y: e.clientY }
       dragDistance = 0
+      lampCharge = Math.min(1, lampCharge + 0.14) // tap pumps the lamp
     }
     const onUp = (e: PointerEvent) => {
       if (boardOpen) return
@@ -651,6 +657,20 @@ export function createScene(opts: {
     camera.position.y = -mouse.y * 0.7 * parallax
     camera.lookAt(0, 0, 0)
     hoverEased += (hoverTarget - hoverEased) * Math.min(1, dt * 6)
+
+    // Lamp — interaction pumps charge, idle cools it back to off. While a board
+    // is open the lamp latches to full power; otherwise it dims as the sphere
+    // flattens into the board. Published to the host to drive --lamp + meter.
+    const dragMag = Math.abs(spinBoostX) + Math.abs(spinBoostY)
+    let lampPump = hoverEased * 0.22 * dt // hovering the sphere warms it
+    // dt-scaled so the charge rate is frame-rate independent (matches the old
+    // 60Hz feel: cap 3.0/s, drag gain 1.8/s per unit of drag magnitude)
+    lampPump += Math.min(3.0 * dt, dragMag * 1.8 * dt) // dragging spikes it harder
+    lampCharge = Math.min(1, lampCharge + lampPump)
+    lampCharge = Math.max(0, lampCharge - dt * 0.07) // gentle cool-down
+    if (boardOpen) lampCharge = 1 // latched: clicked label holds full power
+    const lampOut = boardOpen ? 1 : lampCharge * (1 - flat)
+    onLamp?.(lampOut)
 
     sphere.updateMatrixWorld()
     _invMat.copy(sphere.matrixWorld).invert()
