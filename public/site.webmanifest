@@ -1,0 +1,17 @@
+{
+  "name": "Min Min Latt — AI Enthusiast",
+  "short_name": "minlaxz",
+  "description": "AI Enthusiast building enterprise AI solutions and AI agents.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b1020",
+  "theme_color": "#0b1020",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any",
+      "purpose": "any"
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-label="Min Min Latt — AI Enthusiast">
+  <defs>
+    <radialGradient id="glow" cx="78%" cy="38%" r="55%">
+      <stop offset="0%" stop-color="#60a5fa" stop-opacity="0.55" />
+      <stop offset="45%" stop-color="#60a5fa" stop-opacity="0.18" />
+      <stop offset="100%" stop-color="#60a5fa" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="55%" stop-color="#60a5fa" stop-opacity="0" />
+      <stop offset="80%" stop-color="#60a5fa" stop-opacity="0.175" />
+      <stop offset="100%" stop-color="#60a5fa" stop-opacity="0" />
+    </radialGradient>
+    <radialGradient id="sphere" cx="50%" cy="42%" r="60%">
+      <stop offset="0%" stop-color="#dbe8ff" />
+      <stop offset="40%" stop-color="#60a5fa" />
+      <stop offset="100%" stop-color="#1e3a8a" stop-opacity="0.15" />
+    </radialGradient>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0b1020" />
+      <stop offset="100%" stop-color="#131b2f" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)" />
+  <rect width="1200" height="630" fill="url(#glow)" />
+
+  <!-- orbiting sphere motif -->
+  <g transform="translate(900 315)">
+    <!-- halo ring (half power) -->
+    <circle r="240" fill="url(#halo)" />
+    <circle r="170" fill="url(#sphere)" opacity="0.85" />
+    <circle r="170" fill="none" stroke="#60a5fa" stroke-opacity="0.35" stroke-width="1.5" />
+    <ellipse rx="170" ry="58" fill="none" stroke="#cbd5e1" stroke-opacity="0.25" stroke-width="1.2" />
+    <ellipse rx="58" ry="170" fill="none" stroke="#cbd5e1" stroke-opacity="0.25" stroke-width="1.2" />
+    <circle cx="170" cy="0" r="6" fill="#f8fafc" />
+    <circle cx="-120" cy="-120" r="5" fill="#60a5fa" />
+    <circle cx="-150" cy="90" r="4" fill="#cbd5e1" />
+  </g>
+
+  <!-- text block -->
+  <g transform="translate(96 250)">
+    <text x="0" y="0" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="22" letter-spacing="6" fill="#8ea0b8">AN AI ENTHUSIAST</text>
+    <text x="-2" y="86" font-family="Inter, system-ui, sans-serif" font-weight="600" font-size="92" fill="#f8fafc">Min Min Latt</text>
+    <text x="0" y="150" font-family="'Cormorant Garamond', Georgia, serif" font-style="italic" font-size="40" fill="#cbd5e1">Enterprise AI solutions &amp; AI agents.</text>
+    <text x="0" y="206" font-family="'JetBrains Mono', ui-monospace, monospace" font-size="24" fill="#60a5fa">minlaxz.icu</text>
+  </g>
+</svg>
