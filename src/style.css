@@ -10,6 +10,7 @@
   --color-border-soft: #1e2a43;
   --color-accent: #60a5fa;
   --color-success: #22c55e;
+  --color-warn: #fbbf24;
 
   --font-display: "Inter", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
@@ -27,7 +28,8 @@
   --border-soft: #1e2a43;
   --accent: #60a5fa;
   --success: #22c55e;
-  --lamp: 0; /* 0 = off (closed), 1 = full glow — set per frame from sphere interaction */
+  --warn: #fbbf24;
+  --lamp: 0; /* 0 = off, 1 = full glow — published each frame from the halo ring + sphere */
   --font-display: "Inter", system-ui, sans-serif;
   --font-body: "Inter", system-ui, sans-serif;
   --font-serif: "Cormorant Garamond", "Iowan Old Style", Georgia, serif;
@@ -120,10 +122,6 @@ h1 { margin: 0; text-wrap: balance; }
     transform: translateX(-50%); transform-origin: 50% 0;
     animation: pendant-sway 6.5s ease-in-out infinite;
   }
-  @keyframes pendant-sway {
-    0%, 100% { transform: translateX(-50%) rotate(-1deg); }
-    50%      { transform: translateX(-50%) rotate(1deg); }
-  }
   .pendant-canopy { /* ceiling mount at the top edge */
     width: 18px; height: 6px; border-radius: 0 0 4px 4px;
     background: linear-gradient(#323e5c, #232d45); margin-bottom: -1px;
@@ -150,6 +148,11 @@ h1 { margin: 0; text-wrap: balance; }
       inset 0 0 26px rgba(255, 206, 140, 0.8);
     opacity: var(--lamp);
   }
+  /* the ring is the lamp's power switch — clickable; the rest of the pendant is inert */
+  .pendant-ring { pointer-events: auto; cursor: pointer; transition: transform var(--motion-fast) var(--ease-standard); }
+  .pendant-ring:hover { transform: scale(1.04); }
+  .pendant-ring:active { transform: scale(0.96); }
+  .pendant-ring:focus-visible { outline: 2px solid var(--accent); outline-offset: 5px; }
   /* label click pulls the pendant up: cord retracts, ring sticks to top edge */
   .pendant.lamp-up { animation: none; transform: translateX(-50%); }
   .pendant.lamp-up .pendant-cord { height: 0; }
@@ -205,21 +208,43 @@ h1 { margin: 0; text-wrap: balance; }
     animation: rise 900ms var(--ease-standard) 80ms both;
   }
   .hero h1 .accent {
-    font-family: 'Caveat', 'Segoe Script', cursive; font-style: normal; font-weight: 600;
-    color: var(--accent); letter-spacing: 0;
-    font-size: 1.15em; padding-bottom: 4px; margin-bottom: -4px; line-height: 1.1; display: inline-block;
+    font-family: var(--font-body); font-style: normal; font-weight: 600;
+    color: var(--accent); letter-spacing: -0.02em;
   }
   .lede {
     color: var(--fg-2); font-size: var(--text-lg); max-width: 42ch;
     animation: rise 900ms var(--ease-standard) 180ms both;
   }
-  .lede em { font-family: var(--font-serif); font-style: italic; color: var(--fg); font-size: 1.08em; }
+  .lede em { font-family: var(--font-body); font-style: normal; font-weight: 500; color: var(--accent); }
   .lede a {
     color: var(--accent);
     border-bottom: 1px solid color-mix(in oklab, var(--accent), transparent 60%);
     transition: color var(--motion-base) var(--ease-standard), border-color var(--motion-base) var(--ease-standard);
   }
   .lede a:hover { color: var(--fg); border-bottom-color: var(--fg); }
+
+  /* ── Contact ───────────────────────────────────────────────────────────── */
+  .contact { margin-top: var(--space-6); display: flex; flex-direction: column; gap: 12px; animation: rise 900ms var(--ease-standard) 240ms both; }
+  .contact-link {
+    display: inline-flex; align-items: baseline; gap: 12px; width: fit-content;
+    text-decoration: none; padding-bottom: 4px;
+    border-bottom: 1px solid color-mix(in oklab, var(--accent), transparent 72%);
+    transition: border-color var(--motion-base) var(--ease-standard);
+  }
+  .contact-cue { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: var(--muted); }
+  .contact-mail { color: var(--accent); font-size: var(--text-lg); font-weight: 500; letter-spacing: -0.015em; }
+  .contact-link .arrow { color: var(--accent); width: 14px; height: 14px; align-self: center; transition: transform var(--motion-base) var(--ease-standard); }
+  .contact-link:hover { border-bottom-color: var(--accent); }
+  .contact-link:hover .arrow { transform: translate(3px, -3px); }
+  .contact-note {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; max-width: 46ch;
+    font-family: var(--font-mono); font-size: 11px; line-height: 1.6; letter-spacing: 0.01em; color: var(--muted);
+  }
+  .contact-status { display: inline-flex; align-items: center; gap: 7px; color: var(--fg-2); }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .status-dot.day { background: var(--warn); box-shadow: 0 0 0 3px color-mix(in oklab, var(--warn), transparent 80%), 0 0 10px color-mix(in oklab, var(--warn), transparent 45%); }
+  .status-dot.night { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent), transparent 80%), 0 0 10px color-mix(in oklab, var(--accent), transparent 45%); }
+  .contact-rest { color: color-mix(in oklab, var(--warn), var(--fg-2) 35%); }
 
   /* ── Sphere stage ──────────────────────────────────────────────────────── */
   .scene-wrap { width: 100%; max-width: 600px; justify-self: end; display: grid; gap: var(--space-6); margin-top: clamp(40px, 6vh, 84px); animation: fade 1400ms var(--ease-standard) 200ms both; }
@@ -439,6 +464,10 @@ h1 { margin: 0; text-wrap: balance; }
 @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
 @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.9; } 50% { transform: scale(1.45); opacity: 0; } }
 @keyframes hintFade { to { opacity: 0.78; } }
+@keyframes pendant-sway {
+  0%, 100% { transform: translateX(-50%) rotate(-1deg); }
+  50%      { transform: translateX(-50%) rotate(1deg); }
+}
 @keyframes tapRipple {
   0% { transform: scale(0.35); opacity: 0.9; }
   80% { transform: scale(1.15); opacity: 0; }
@@ -480,6 +509,9 @@ h1 { margin: 0; text-wrap: balance; }
 
 @media (prefers-reduced-motion: reduce) {
   .eyebrow, .hero h1, .lede, .scene { animation: none; }
+  .pendant { animation: none; }
+  .pendant-cord { transition: none; }
+  .contact { animation: none; }
   .scene-hint .tap-glyph::before,
   .scene-hint .tap-glyph::after { animation: none; }
   .blog-panel { transition: opacity 160ms linear; transform: none; }

@@ -393,6 +393,50 @@ export function createScene(opts: {
   let lastPointer: { x: number; y: number } | null = null
   let dragDistance = 0
 
+  const handlers: Array<() => void> = []
+
+  // ── Halo ring power switch ───────────────────────────────────────────────
+  // The ring under the top bar is the lamp's power switch. Clicking it cycles a
+  // persistent power floor; sphere hover/drag/tap pumps brightness ABOVE that
+  // floor, idle cools it back down. The combined level is published to the host
+  // each frame via onLamp (which drives the --lamp var + P=V·I meter).
+  // States loop: 3W (offset, on load) → 12W → 24W → 12W → 3W → 0W (off) → 3W…
+  const RING_POWER_STATES = [3, 12, 24, 12, 3, 0] // watts; index 0 = initial 3W offset
+  const wattToLc = (w: number) => Math.sqrt(w / 24)
+  let ringPowerIndex = 0
+  let ringTargetLc = wattToLc(RING_POWER_STATES[ringPowerIndex]!)
+  let ringLamp = ringTargetLc // start already glowing at the 3W offset
+  const ringEl = document.getElementById('pendant-ring')
+
+  function applyRingPower() {
+    const w = RING_POWER_STATES[ringPowerIndex]!
+    ringTargetLc = wattToLc(w)
+    if (ringEl) {
+      ringEl.title = w === 0 ? 'Lamp off — click to switch on' : 'Lamp ' + w + ' W — click to change'
+      ringEl.setAttribute('aria-label', w === 0 ? 'Halo lamp off' : 'Halo lamp ' + w + ' watts')
+    }
+  }
+  function cycleRingPower() {
+    ringPowerIndex = (ringPowerIndex + 1) % RING_POWER_STATES.length
+    applyRingPower()
+  }
+  if (ringEl) {
+    applyRingPower()
+    const onRingClick = () => cycleRingPower()
+    const onRingKey = (e: KeyboardEvent) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault()
+        cycleRingPower()
+      }
+    }
+    ringEl.addEventListener('click', onRingClick)
+    ringEl.addEventListener('keydown', onRingKey)
+    handlers.push(() => ringEl.removeEventListener('click', onRingClick))
+    handlers.push(() => ringEl.removeEventListener('keydown', onRingKey))
+  }
+  // seed the glow at the 3W offset before the first animation frame
+  onLamp?.(ringLamp)
+
   function hitLabelAt(px: number, py: number, w: number, h: number): { id: string } | null {
     ndc.set((px / w) * 2 - 1, -((py / h) * 2 - 1))
     raycaster.setFromCamera(ndc, camera)
@@ -402,8 +446,6 @@ export function createScene(opts: {
     if ((sp.userData.facing || 0) < 0.18) return null
     return { id: sp.userData.labelId }
   }
-
-  const handlers: Array<() => void> = []
 
   if (!reduceMotion) {
     const onWindowMove = (e: PointerEvent) => {
@@ -658,9 +700,10 @@ export function createScene(opts: {
     camera.lookAt(0, 0, 0)
     hoverEased += (hoverTarget - hoverEased) * Math.min(1, dt * 6)
 
-    // Lamp — interaction pumps charge, idle cools it back to off. While a board
-    // is open the lamp latches to full power; otherwise it dims as the sphere
-    // flattens into the board. Published to the host to drive --lamp + meter.
+    // Lamp — the ring power floor sets a baseline; sphere hover/drag/tap pumps
+    // charge ABOVE it; idle cools the pumped charge back down to the floor.
+    // While a board is open the lamp latches to full; otherwise it dims as the
+    // sphere flattens. Published to the host to drive --lamp + the P=V·I meter.
     const dragMag = Math.abs(spinBoostX) + Math.abs(spinBoostY)
     let lampPump = hoverEased * 0.22 * dt // hovering the sphere warms it
     // dt-scaled so the charge rate is frame-rate independent (matches the old
@@ -668,8 +711,10 @@ export function createScene(opts: {
     lampPump += Math.min(3.0 * dt, dragMag * 1.8 * dt) // dragging spikes it harder
     lampCharge = Math.min(1, lampCharge + lampPump)
     lampCharge = Math.max(0, lampCharge - dt * 0.07) // gentle cool-down
-    if (boardOpen) lampCharge = 1 // latched: clicked label holds full power
-    const lampOut = boardOpen ? 1 : lampCharge * (1 - flat)
+    ringLamp += (ringTargetLc - ringLamp) * Math.min(1, dt * 4) // ease between clicked ring states
+    if (boardOpen) lampCharge = 1 // latched: an open board holds full power
+    const base = Math.max(lampCharge, ringLamp) // ring = persistent floor, sphere pumps above
+    const lampOut = boardOpen ? 1 : base * (1 - flat)
     onLamp?.(lampOut)
 
     sphere.updateMatrixWorld()

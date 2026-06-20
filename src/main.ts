@@ -16,7 +16,7 @@ app.innerHTML = `
   <div class="pendant" id="pendant" aria-hidden="true">
     <span class="pendant-canopy"></span>
     <span class="pendant-cord"></span>
-    <span class="pendant-ring"></span>
+    <span class="pendant-ring" id="pendant-ring" role="button" tabindex="0" aria-hidden="false" aria-label="Halo lamp 3 watts" title="Lamp 3 W — click to change"></span>
   </div>
   <div class="lamp-meter" id="lamp-meter" aria-hidden="true">
     <span class="lm-eq">P = V·I</span>
@@ -30,11 +30,21 @@ app.innerHTML = `
         <p class="eyebrow">An AI Enthusiast</p>
         <h1>Hi, <span class="accent">nice</span> to meet&nbsp;you.</h1>
         <p class="lede">
-          Everything you wanna know is <em>inside the sphere</em> — go ahead, explore it and have fun.
-          Tap <em>blog</em> to watch it unwarp into my writing. Work with me, I do
-          <em>enterprise AI Solutions</em> to close the gaps that matter for your Business.
-          <br /><a href="mailto:hello@minlaxz.icu">hello@minlaxz.icu</a>
+          It's all <em>inside the sphere</em> — explore it, or tap <em>blog</em> to read my writing.
+          I build <em>enterprise AI solutions</em> that close the gaps that move your business.
         </p>
+        <div class="contact">
+          <a class="contact-link" href="mailto:hello@minlaxz.icu">
+            <span class="contact-cue">Let's talk</span>
+            <span class="contact-mail">hello@minlaxz.icu</span>
+            <svg class="arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12 L12 4 M6 4 H12 V10"/></svg>
+          </a>
+          <p class="contact-note">
+            <span class="contact-status"><span class="status-dot" id="status-dot"></span><span id="status-text">checking local time…</span></span>
+            <span>Typical replies in ~6–12h on weekdays, ~3–6h on weekends. Different timezone? It may stretch a little.</span>
+            <span class="contact-rest" id="rest-note"></span>
+          </p>
+        </div>
       </div>
       <div class="scene-wrap">
         <div class="scene" id="scene">
@@ -80,9 +90,9 @@ app.innerHTML = `
     </main>
     <footer class="bar footbar">
       <span class="meta">
-        Designed by <a href="http://open-design.ai/" target="_blank" rel="noopener">Open Design</a>
-        with <a href="https://www.tasteskill.dev/" target="_blank" rel="noopener">Taste Skill</a>
-        and built using <a href="https://multica.ai/" target="_blank" rel="noopener">Multica</a>.
+        <a href="http://open-design.ai/" target="_blank" rel="noopener">Open Design</a>
+        with <a href="https://www.tasteskill.dev/" target="_blank" rel="noopener">Taste Skills</a>
+        + Claude on <a href="https://multica.ai/" target="_blank" rel="noopener">Multica</a>
       </span>
     </footer>
   </div>
@@ -102,6 +112,7 @@ const lampPEl = document.querySelector<HTMLElement>('#lm-p')!
 const lampVEl = document.querySelector<HTMLElement>('#lm-v')!
 const lampIEl = document.querySelector<HTMLElement>('#lm-i')!
 const rootStyle = document.documentElement.style
+let lastLampStr = '' // cache so steady-state frames skip redundant DOM writes
 
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
@@ -143,11 +154,61 @@ sceneApi = createScene({
   // glow, backlight pool, nightfall lift) and the P = V·I power meter.
   // Rated 12 V / 2.0 A / 24 W at full output.
   onLamp: (value) => {
-    rootStyle.setProperty('--lamp', value.toFixed(3))
+    // Guard every write: steady-state frames (lamp idle/off) produce the same
+    // string, so skipping unchanged writes avoids needless style recalcs and
+    // layout thrash inside the rAF loop.
+    const lampStr = value.toFixed(3)
+    if (lampStr === lastLampStr) return
+    lastLampStr = lampStr
+    rootStyle.setProperty('--lamp', lampStr)
     const v = value * 12
     const i = value * 2.0
-    lampVEl.textContent = v.toFixed(1)
-    lampIEl.textContent = i.toFixed(2)
-    lampPEl.textContent = (v * i).toFixed(1)
+    const vStr = v.toFixed(1)
+    const iStr = i.toFixed(2)
+    const pStr = (v * i).toFixed(1)
+    if (lampVEl.textContent !== vStr) lampVEl.textContent = vStr
+    if (lampIEl.textContent !== iStr) lampIEl.textContent = iStr
+    if (lampPEl.textContent !== pStr) lampPEl.textContent = pStr
   },
 })
+
+// ── Live contact status — day/night dot + Myanmar local time (UTC+6:30) ──
+// Derived from this device's clock so it stays correct in any timezone.
+// Refreshed each minute so the "live" time and rest-hours note stay current.
+function initContactStatus() {
+  const dot = document.querySelector<HTMLSpanElement>('#status-dot')
+  const txt = document.querySelector<HTMLSpanElement>('#status-text')
+  const rest = document.querySelector<HTMLSpanElement>('#rest-note')
+  const update = () => {
+    const now = new Date()
+    const mmt = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + 6.5 * 3600000)
+    const h = mmt.getHours()
+    const m = mmt.getMinutes()
+    const isDay = h >= 6 && h < 18
+    const resting = h >= 23 || h < 7
+    if (dot) {
+      dot.classList.remove('day', 'night')
+      dot.classList.add(isDay ? 'day' : 'night')
+    }
+    const hh = h % 12 || 12
+    const ampm = h < 12 ? 'AM' : 'PM'
+    const mm = m < 10 ? '0' + m : '' + m
+    if (txt) {
+      txt.textContent =
+        (isDay ? 'Daytime' : 'Nighttime') + ' in Myanmar · ' + hh + ':' + mm + ' ' + ampm + ' (UTC+6:30)'
+    }
+    if (rest) {
+      rest.textContent = resting ? "It's my rest hours, so a reply may run a touch later." : ''
+    }
+  }
+  update()
+  // Align to the start of the next minute so the displayed time flips exactly
+  // on the minute boundary instead of drifting up to 59s from page-load time.
+  const delay = 60000 - (Date.now() % 60000)
+  window.setTimeout(() => {
+    update()
+    window.setInterval(update, 60000)
+  }, delay)
+}
+
+initContactStatus()
