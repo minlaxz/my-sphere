@@ -109,6 +109,7 @@ h1 { margin: 0; text-wrap: balance; }
     background: radial-gradient(60% 64% at 50% 0%,
       rgba(255, 201, 130, 0.60), rgba(255, 176, 96, 0.16) 48%, transparent 74%);
     opacity: var(--lamp); filter: blur(10px);
+    will-change: opacity; /* promote to its own layer — blurred element repaints are costly */
     transition: opacity 360ms var(--ease-standard);
   }
   /* halo ring pendant — floating illuminated ring, sci-fi & minimal. The wide
@@ -136,11 +137,18 @@ h1 { margin: 0; text-wrap: balance; }
     position: relative; width: clamp(78px, 9vw, 104px); aspect-ratio: 1;
     margin-top: -1px; border-radius: 50%;
     border: clamp(7px, 0.9vw, 10px) solid #202b45;
-    background: radial-gradient(closest-side, transparent 60%,
-      rgba(255, 196, 120, calc(var(--lamp) * 0.12)) 100%);
+  }
+  /* Full-power glow baked statically on the pseudo-element; --lamp drives only
+     its opacity so the compositor handles it — no per-frame box-shadow repaint. */
+  .pendant-ring::after {
+    content: ''; position: absolute;
+    inset: calc(-1 * clamp(7px, 0.9vw, 10px));
+    border-radius: 50%; pointer-events: none;
+    background: radial-gradient(closest-side, transparent 60%, rgba(255, 196, 120, 0.12) 100%);
     box-shadow:
-      0 0 calc(6px + var(--lamp) * 46px) calc(1px + var(--lamp) * 12px) rgba(255, 186, 108, calc(var(--lamp) * 0.7)),
-      inset 0 0 calc(4px + var(--lamp) * 22px) rgba(255, 206, 140, calc(var(--lamp) * 0.8));
+      0 0 52px 13px rgba(255, 186, 108, 0.7),
+      inset 0 0 26px rgba(255, 206, 140, 0.8);
+    opacity: var(--lamp);
   }
   /* label click pulls the pendant up: cord retracts, ring sticks to top edge */
   .pendant.lamp-up { animation: none; transform: translateX(-50%); }

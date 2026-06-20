@@ -663,7 +663,9 @@ export function createScene(opts: {
     // flattens into the board. Published to the host to drive --lamp + meter.
     const dragMag = Math.abs(spinBoostX) + Math.abs(spinBoostY)
     let lampPump = hoverEased * 0.22 * dt // hovering the sphere warms it
-    lampPump += Math.min(0.05, dragMag * 0.03) // dragging spikes it harder
+    // dt-scaled so the charge rate is frame-rate independent (matches the old
+    // 60Hz feel: cap 3.0/s, drag gain 1.8/s per unit of drag magnitude)
+    lampPump += Math.min(3.0 * dt, dragMag * 1.8 * dt) // dragging spikes it harder
     lampCharge = Math.min(1, lampCharge + lampPump)
     lampCharge = Math.max(0, lampCharge - dt * 0.07) // gentle cool-down
     if (boardOpen) lampCharge = 1 // latched: clicked label holds full power
