@@ -169,8 +169,9 @@ export function createScene(opts: {
   container: HTMLElement
   onLabelClick: (id: string) => void
   onMetrics?: (m: SceneMetrics) => void
+  onLamp?: (value: number) => void
 }): SceneAPI {
-  const { canvas, container, onLabelClick, onMetrics } = opts
+  const { canvas, container, onLabelClick, onMetrics, onLamp } = opts
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   const renderer = new THREE.WebGLRenderer({
@@ -372,6 +373,10 @@ export function createScene(opts: {
   let morph = 0
   let morphTarget = 0
   let boardOpen = false
+  // Lamp charge — the interaction signal that drives the pendant glow. Sphere
+  // hover/drag/tap pumps it; idle cools it. Latched to full while a board is
+  // open. Published to the host each frame via onLamp.
+  let lampCharge = 0
   const mouse = { x: 0, y: 0, tx: 0, ty: 0 }
   const canvasPointer = { x: 0, y: 0, inside: false, down: false }
   const raycaster = new THREE.Raycaster()
@@ -390,24 +395,18 @@ export function createScene(opts: {
 
   const handlers: Array<() => void> = []
 
-  // ── Pendant lamp ─────────────────────────────────────────────────────────
-  // The halo ring under the top bar is the lamp's power switch. Clicking it
-  // cycles a persistent power floor; sphere hover/drag pumps brightness ABOVE
-  // that floor, idle cools it back down. Each frame we publish the combined
-  // level to the CSS var `--lamp`, which casts the backlight and lifts the
-  // page out of the dark. The meter shows P = V·I (rated 12 V / 2.0 A / 24 W).
+  // ── Halo ring power switch ───────────────────────────────────────────────
+  // The ring under the top bar is the lamp's power switch. Clicking it cycles a
+  // persistent power floor; sphere hover/drag/tap pumps brightness ABOVE that
+  // floor, idle cools it back down. The combined level is published to the host
+  // each frame via onLamp (which drives the --lamp var + P=V·I meter).
   // States loop: 3W (offset, on load) → 12W → 24W → 12W → 3W → 0W (off) → 3W…
   const RING_POWER_STATES = [3, 12, 24, 12, 3, 0] // watts; index 0 = initial 3W offset
   const wattToLc = (w: number) => Math.sqrt(w / 24)
-  let lampCharge = 0
   let ringPowerIndex = 0
   let ringTargetLc = wattToLc(RING_POWER_STATES[ringPowerIndex]!)
   let ringLamp = ringTargetLc // start already glowing at the 3W offset
-  const pendantEl = document.getElementById('pendant')
   const ringEl = document.getElementById('pendant-ring')
-  const lmP = document.getElementById('lm-p')
-  const lmV = document.getElementById('lm-v')
-  const lmI = document.getElementById('lm-i')
 
   function applyRingPower() {
     const w = RING_POWER_STATES[ringPowerIndex]!
@@ -436,7 +435,7 @@ export function createScene(opts: {
     handlers.push(() => ringEl.removeEventListener('keydown', onRingKey))
   }
   // seed the glow at the 3W offset before the first animation frame
-  document.documentElement.style.setProperty('--lamp', ringLamp.toFixed(3))
+  onLamp?.(ringLamp)
 
   function hitLabelAt(px: number, py: number, w: number, h: number): { id: string } | null {
     ndc.set((px / w) * 2 - 1, -((py / h) * 2 - 1))
@@ -473,6 +472,7 @@ export function createScene(opts: {
       container.setPointerCapture(e.pointerId)
       lastPointer = { x: e.clientX, y: e.clientY }
       dragDistance = 0
+      lampCharge = Math.min(1, lampCharge + 0.14) // tap pumps the lamp
     }
     const onUp = (e: PointerEvent) => {
       if (boardOpen) return
@@ -488,7 +488,6 @@ export function createScene(opts: {
           morphTarget = 1
           hoverTarget = 0
           hoveredLabelId = null
-          pendantEl?.classList.add('lamp-up') // retract cord, stick to top edge
           container.classList.remove('label-hover')
           const L = LABELS.find((l) => l.id === hit.id)
           if (L) computeMorphDelay(L.dir)
@@ -665,26 +664,6 @@ export function createScene(opts: {
       s.intensity = Math.max(0, s.intensity - dt * 2.4)
     }
 
-    // lamp — sphere interaction pumps charge, idle cools it; the ring sets a
-    // persistent power floor and the sphere can pump brighter above it.
-    const dragMag = Math.abs(spinBoostX) + Math.abs(spinBoostY)
-    let lampPump = hoverEased * 0.22 * dt // hovering the sphere warms it
-    lampPump += Math.min(0.05, dragMag * 0.03) // dragging spikes it harder
-    lampCharge = Math.min(1, lampCharge + lampPump)
-    lampCharge = Math.max(0, lampCharge - dt * 0.07) // gentle cool-down
-    ringLamp += (ringTargetLc - ringLamp) * Math.min(1, dt * 4) // ease between clicked states
-    if (boardOpen) lampCharge = 1 // latched: an open board holds full power
-    const base = Math.max(lampCharge, ringLamp) // ring = persistent floor
-    const lc = boardOpen ? 1 : base * (1 - flat) // dims as the board forms
-    document.documentElement.style.setProperty('--lamp', lc.toFixed(3))
-    if (lmP && lmV && lmI) {
-      const V = lc * 12
-      const I = lc * 2.0
-      lmV.textContent = V.toFixed(1)
-      lmI.textContent = I.toFixed(2)
-      lmP.textContent = (V * I).toFixed(1)
-    }
-
     // name sprite — drift + fade as board forms
     const nameDriftX = Math.sin(t * 0.42) * 0.07
     const nameDriftY = Math.cos(t * 0.31) * 0.045
@@ -720,6 +699,23 @@ export function createScene(opts: {
     camera.position.y = -mouse.y * 0.7 * parallax
     camera.lookAt(0, 0, 0)
     hoverEased += (hoverTarget - hoverEased) * Math.min(1, dt * 6)
+
+    // Lamp — the ring power floor sets a baseline; sphere hover/drag/tap pumps
+    // charge ABOVE it; idle cools the pumped charge back down to the floor.
+    // While a board is open the lamp latches to full; otherwise it dims as the
+    // sphere flattens. Published to the host to drive --lamp + the P=V·I meter.
+    const dragMag = Math.abs(spinBoostX) + Math.abs(spinBoostY)
+    let lampPump = hoverEased * 0.22 * dt // hovering the sphere warms it
+    // dt-scaled so the charge rate is frame-rate independent (matches the old
+    // 60Hz feel: cap 3.0/s, drag gain 1.8/s per unit of drag magnitude)
+    lampPump += Math.min(3.0 * dt, dragMag * 1.8 * dt) // dragging spikes it harder
+    lampCharge = Math.min(1, lampCharge + lampPump)
+    lampCharge = Math.max(0, lampCharge - dt * 0.07) // gentle cool-down
+    ringLamp += (ringTargetLc - ringLamp) * Math.min(1, dt * 4) // ease between clicked ring states
+    if (boardOpen) lampCharge = 1 // latched: an open board holds full power
+    const base = Math.max(lampCharge, ringLamp) // ring = persistent floor, sphere pumps above
+    const lampOut = boardOpen ? 1 : base * (1 - flat)
+    onLamp?.(lampOut)
 
     sphere.updateMatrixWorld()
     _invMat.copy(sphere.matrixWorld).invert()
@@ -817,7 +813,6 @@ export function createScene(opts: {
     closeBoard() {
       boardOpen = false
       morphTarget = 0
-      pendantEl?.classList.remove('lamp-up') // release latch → cord drops back
     },
   }
 }

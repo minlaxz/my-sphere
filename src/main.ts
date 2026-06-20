@@ -106,6 +106,14 @@ const metricREl = document.querySelector<HTMLSpanElement>('#metric-r')!
 const metricVolEl = document.querySelector<HTMLSpanElement>('#metric-vol')!
 const metricAreaEl = document.querySelector<HTMLSpanElement>('#metric-area')!
 
+// Lamp fixture: a halo-ring pendant whose glow is driven by sphere interaction.
+const pendantEl = document.querySelector<HTMLDivElement>('#pendant')!
+const lampPEl = document.querySelector<HTMLElement>('#lm-p')!
+const lampVEl = document.querySelector<HTMLElement>('#lm-v')!
+const lampIEl = document.querySelector<HTMLElement>('#lm-i')!
+const rootStyle = document.documentElement.style
+let lastLampStr = '' // cache so steady-state frames skip redundant DOM writes
+
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 let sceneApi: ReturnType<typeof createScene> | null = null
@@ -122,10 +130,12 @@ const board = mountBoard({
   reduceMotion,
   onMorphIn: () => {
     // morph state lives inside the scene; the label click triggers it from
-    // there, so this side just needs to know a board has opened. Nothing else
-    // to do here — the scene is already morphing.
+    // there, so this side just needs to know a board has opened. Pull the
+    // pendant up — cord retracts, ring sticks to the top edge at full power.
+    pendantEl.classList.add('lamp-up')
   },
   onMorphOut: () => {
+    pendantEl.classList.remove('lamp-up')
     sceneApi?.closeBoard()
   },
 })
@@ -139,6 +149,26 @@ sceneApi = createScene({
     metricVolEl.textContent = vol.toFixed(2)
     metricAreaEl.textContent = area.toFixed(2)
     metricsEl.style.opacity = (1 - flatten).toFixed(3)
+  },
+  // Lamp output (0..1) published each frame; drives the --lamp CSS var (ring
+  // glow, backlight pool, nightfall lift) and the P = V·I power meter.
+  // Rated 12 V / 2.0 A / 24 W at full output.
+  onLamp: (value) => {
+    // Guard every write: steady-state frames (lamp idle/off) produce the same
+    // string, so skipping unchanged writes avoids needless style recalcs and
+    // layout thrash inside the rAF loop.
+    const lampStr = value.toFixed(3)
+    if (lampStr === lastLampStr) return
+    lastLampStr = lampStr
+    rootStyle.setProperty('--lamp', lampStr)
+    const v = value * 12
+    const i = value * 2.0
+    const vStr = v.toFixed(1)
+    const iStr = i.toFixed(2)
+    const pStr = (v * i).toFixed(1)
+    if (lampVEl.textContent !== vStr) lampVEl.textContent = vStr
+    if (lampIEl.textContent !== iStr) lampIEl.textContent = iStr
+    if (lampPEl.textContent !== pStr) lampPEl.textContent = pStr
   },
 })
 
@@ -172,7 +202,13 @@ function initContactStatus() {
     }
   }
   update()
-  window.setInterval(update, 60000)
+  // Align to the start of the next minute so the displayed time flips exactly
+  // on the minute boundary instead of drifting up to 59s from page-load time.
+  const delay = 60000 - (Date.now() % 60000)
+  window.setTimeout(() => {
+    update()
+    window.setInterval(update, 60000)
+  }, delay)
 }
 
 initContactStatus()
