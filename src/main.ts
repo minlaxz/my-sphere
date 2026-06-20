@@ -11,6 +11,19 @@ const app = document.querySelector<HTMLDivElement>('#app')!
 
 app.innerHTML = `
   <div class="field" aria-hidden="true"></div>
+  <div class="nightfall" aria-hidden="true"></div>
+  <div class="backlight" aria-hidden="true"></div>
+  <div class="pendant" id="pendant" aria-hidden="true">
+    <span class="pendant-canopy"></span>
+    <span class="pendant-cord"></span>
+    <span class="pendant-ring"></span>
+  </div>
+  <div class="lamp-meter" id="lamp-meter" aria-hidden="true">
+    <span class="lm-eq">P = V·I</span>
+    <span class="lm-row"><b id="lm-p">0.0</b> W</span>
+    <span class="lm-row"><b id="lm-v">0.0</b> V</span>
+    <span class="lm-row"><b id="lm-i">0.00</b> A</span>
+  </div>
   <div class="page">
     <main class="hero">
       <div class="hero-copy">
@@ -83,6 +96,13 @@ const metricREl = document.querySelector<HTMLSpanElement>('#metric-r')!
 const metricVolEl = document.querySelector<HTMLSpanElement>('#metric-vol')!
 const metricAreaEl = document.querySelector<HTMLSpanElement>('#metric-area')!
 
+// Lamp fixture: a halo-ring pendant whose glow is driven by sphere interaction.
+const pendantEl = document.querySelector<HTMLDivElement>('#pendant')!
+const lampPEl = document.querySelector<HTMLElement>('#lm-p')!
+const lampVEl = document.querySelector<HTMLElement>('#lm-v')!
+const lampIEl = document.querySelector<HTMLElement>('#lm-i')!
+const rootStyle = document.documentElement.style
+
 const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
 let sceneApi: ReturnType<typeof createScene> | null = null
@@ -99,10 +119,12 @@ const board = mountBoard({
   reduceMotion,
   onMorphIn: () => {
     // morph state lives inside the scene; the label click triggers it from
-    // there, so this side just needs to know a board has opened. Nothing else
-    // to do here — the scene is already morphing.
+    // there, so this side just needs to know a board has opened. Pull the
+    // pendant up — cord retracts, ring sticks to the top edge at full power.
+    pendantEl.classList.add('lamp-up')
   },
   onMorphOut: () => {
+    pendantEl.classList.remove('lamp-up')
     sceneApi?.closeBoard()
   },
 })
@@ -116,5 +138,16 @@ sceneApi = createScene({
     metricVolEl.textContent = vol.toFixed(2)
     metricAreaEl.textContent = area.toFixed(2)
     metricsEl.style.opacity = (1 - flatten).toFixed(3)
+  },
+  // Lamp output (0..1) published each frame; drives the --lamp CSS var (ring
+  // glow, backlight pool, nightfall lift) and the P = V·I power meter.
+  // Rated 12 V / 2.0 A / 24 W at full output.
+  onLamp: (value) => {
+    rootStyle.setProperty('--lamp', value.toFixed(3))
+    const v = value * 12
+    const i = value * 2.0
+    lampVEl.textContent = v.toFixed(1)
+    lampIEl.textContent = i.toFixed(2)
+    lampPEl.textContent = (v * i).toFixed(1)
   },
 })
