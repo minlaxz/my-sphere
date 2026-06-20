@@ -11,17 +11,40 @@ const app = document.querySelector<HTMLDivElement>('#app')!
 
 app.innerHTML = `
   <div class="field" aria-hidden="true"></div>
+  <div class="nightfall" aria-hidden="true"></div>
+  <div class="backlight" aria-hidden="true"></div>
+  <div class="pendant" id="pendant" aria-hidden="true">
+    <span class="pendant-canopy"></span>
+    <span class="pendant-cord"></span>
+    <span class="pendant-ring" id="pendant-ring" role="button" tabindex="0" aria-hidden="false" aria-label="Halo lamp 3 watts" title="Lamp 3 W — click to change"></span>
+  </div>
+  <div class="lamp-meter" id="lamp-meter" aria-hidden="true">
+    <span class="lm-eq">P = V·I</span>
+    <span class="lm-row"><b id="lm-p">0.0</b> W</span>
+    <span class="lm-row"><b id="lm-v">0.0</b> V</span>
+    <span class="lm-row"><b id="lm-i">0.00</b> A</span>
+  </div>
   <div class="page">
     <main class="hero">
       <div class="hero-copy">
         <p class="eyebrow">An AI Enthusiast</p>
         <h1>Hi, <span class="accent">nice</span> to meet&nbsp;you.</h1>
         <p class="lede">
-          Everything you wanna know is <em>inside the sphere</em> — go ahead, explore it and have fun.
-          Tap <em>blog</em> to watch it unwarp into my writing. Work with me, I do
-          <em>enterprise AI Solutions</em> to close the gaps that matter for your Business.
-          <br /><a href="mailto:hello@minlaxz.icu">hello@minlaxz.icu</a>
+          It's all <em>inside the sphere</em> — explore it, or tap <em>blog</em> to read my writing.
+          I build <em>enterprise AI solutions</em> that close the gaps that move your business.
         </p>
+        <div class="contact">
+          <a class="contact-link" href="mailto:hello@minlaxz.icu">
+            <span class="contact-cue">Let's talk</span>
+            <span class="contact-mail">hello@minlaxz.icu</span>
+            <svg class="arrow" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12 L12 4 M6 4 H12 V10"/></svg>
+          </a>
+          <p class="contact-note">
+            <span class="contact-status"><span class="status-dot" id="status-dot"></span><span id="status-text">checking local time…</span></span>
+            <span>Typical replies in ~6–12h on weekdays, ~3–6h on weekends. Different timezone? It may stretch a little.</span>
+            <span class="contact-rest" id="rest-note"></span>
+          </p>
+        </div>
       </div>
       <div class="scene-wrap">
         <div class="scene" id="scene">
@@ -67,9 +90,9 @@ app.innerHTML = `
     </main>
     <footer class="bar footbar">
       <span class="meta">
-        Designed by <a href="http://open-design.ai/" target="_blank" rel="noopener">Open Design</a>
-        with <a href="https://www.tasteskill.dev/" target="_blank" rel="noopener">Taste Skill</a>
-        and built using <a href="https://multica.ai/" target="_blank" rel="noopener">Multica</a>.
+        <a href="http://open-design.ai/" target="_blank" rel="noopener">Open Design</a>
+        with <a href="https://www.tasteskill.dev/" target="_blank" rel="noopener">Taste Skills</a>
+        + Claude on <a href="https://multica.ai/" target="_blank" rel="noopener">Multica</a>
       </span>
     </footer>
   </div>
@@ -118,3 +141,38 @@ sceneApi = createScene({
     metricsEl.style.opacity = (1 - flatten).toFixed(3)
   },
 })
+
+// ── Live contact status — day/night dot + Myanmar local time (UTC+6:30) ──
+// Derived from this device's clock so it stays correct in any timezone.
+// Refreshed each minute so the "live" time and rest-hours note stay current.
+function initContactStatus() {
+  const dot = document.querySelector<HTMLSpanElement>('#status-dot')
+  const txt = document.querySelector<HTMLSpanElement>('#status-text')
+  const rest = document.querySelector<HTMLSpanElement>('#rest-note')
+  const update = () => {
+    const now = new Date()
+    const mmt = new Date(now.getTime() + now.getTimezoneOffset() * 60000 + 6.5 * 3600000)
+    const h = mmt.getHours()
+    const m = mmt.getMinutes()
+    const isDay = h >= 6 && h < 18
+    const resting = h >= 23 || h < 7
+    if (dot) {
+      dot.classList.remove('day', 'night')
+      dot.classList.add(isDay ? 'day' : 'night')
+    }
+    const hh = h % 12 || 12
+    const ampm = h < 12 ? 'AM' : 'PM'
+    const mm = m < 10 ? '0' + m : '' + m
+    if (txt) {
+      txt.textContent =
+        (isDay ? 'Daytime' : 'Nighttime') + ' in Myanmar · ' + hh + ':' + mm + ' ' + ampm + ' (UTC+6:30)'
+    }
+    if (rest) {
+      rest.textContent = resting ? "It's my rest hours, so a reply may run a touch later." : ''
+    }
+  }
+  update()
+  window.setInterval(update, 60000)
+}
+
+initContactStatus()
