@@ -1,10 +1,12 @@
 import './style.css'
 import { inject } from '@vercel/analytics'
+import { injectSpeedInsights } from '@vercel/speed-insights'
 import { createScene } from './scene'
 import { mountBoard } from './blog'
 
 if (import.meta.env.PROD) {
   inject()
+  injectSpeedInsights()
 }
 
 const app = document.querySelector<HTMLDivElement>('#app')!
