@@ -1,11 +1,11 @@
 import * as THREE from 'three'
 import { LABELS, type LabelDef } from './labels'
+import { isOpen, type BoardStore } from './board-state'
 
 export type SceneMetrics = { r: number; vol: number; area: number; flatten: number }
 
 export type SceneAPI = {
   dispose: () => void
-  closeBoard: () => void
 }
 
 type LabelSprite = THREE.Sprite & {
@@ -22,7 +22,6 @@ const DOT_R = 7
 const DOT_NORM = DOT_X / LABEL_W
 const MORPH_SPREAD = 0.62
 const MORPH_WINDOW = 0.42
-const MORPH_DURATION = 1.18
 const SQUARE_HALF = 2.95
 const GRID = Math.ceil(Math.sqrt(POINTS))
 const SPARK_COUNT = 8
@@ -167,11 +166,11 @@ function smooth01(p: number): number {
 export function createScene(opts: {
   canvas: HTMLCanvasElement
   container: HTMLElement
-  onLabelClick: (id: string) => void
+  board: BoardStore
   onMetrics?: (m: SceneMetrics) => void
   onLamp?: (value: number) => void
 }): SceneAPI {
-  const { canvas, container, onLabelClick, onMetrics, onLamp } = opts
+  const { canvas, container, board, onMetrics, onLamp } = opts
   const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
 
   const renderer = new THREE.WebGLRenderer({
@@ -369,10 +368,7 @@ export function createScene(opts: {
     sparkPool.push(sp)
   }
 
-  // Interaction state
-  let morph = 0
-  let morphTarget = 0
-  let boardOpen = false
+  // Interaction state (board / morph phase lives in opts.board)
   // Lamp charge — the interaction signal that drives the pendant glow. Sphere
   // hover/drag/tap pumps it; idle cools it. Latched to full while a board is
   // open. Published to the host each frame via onLamp.
@@ -467,7 +463,7 @@ export function createScene(opts: {
       hoveredLabelId = null
     }
     const onDown = (e: PointerEvent) => {
-      if (boardOpen) return
+      if (isOpen(board.get())) return
       canvasPointer.down = true
       container.setPointerCapture(e.pointerId)
       lastPointer = { x: e.clientX, y: e.clientY }
@@ -475,7 +471,7 @@ export function createScene(opts: {
       lampCharge = Math.min(1, lampCharge + 0.14) // tap pumps the lamp
     }
     const onUp = (e: PointerEvent) => {
-      if (boardOpen) return
+      if (isOpen(board.get())) return
       canvasPointer.down = false
       try {
         container.releasePointerCapture(e.pointerId)
@@ -484,20 +480,18 @@ export function createScene(opts: {
         const r = container.getBoundingClientRect()
         const hit = hitLabelAt(e.clientX - r.left, e.clientY - r.top, r.width, r.height)
         if (hit) {
-          boardOpen = true
-          morphTarget = 1
           hoverTarget = 0
           hoveredLabelId = null
           container.classList.remove('label-hover')
           const L = LABELS.find((l) => l.id === hit.id)
           if (L) computeMorphDelay(L.dir)
-          onLabelClick(hit.id)
+          board.open(hit.id)
         }
       }
       lastPointer = null
     }
     const onMove = (e: PointerEvent) => {
-      if (boardOpen) return
+      if (isOpen(board.get())) return
       const r = container.getBoundingClientRect()
       const px = e.clientX - r.left
       const py = e.clientY - r.top
@@ -592,13 +586,10 @@ export function createScene(opts: {
   function tick() {
     const dt = Math.min(clock.getDelta(), 0.05)
     t += dt
+    board.tick(dt)
+    const { morph } = board.get()
+    const boardOpen = isOpen(board.get())
     if (boardOpen) hoverTarget = 0
-
-    if (morph !== morphTarget) {
-      const dir = morphTarget > morph ? 1 : -1
-      morph += (dir * dt) / MORPH_DURATION
-      morph = Math.max(0, Math.min(1, morph))
-    }
     const flat = smooth01(morph)
     const breath = 2.0 + Math.sin(t * 0.55) * 0.18
     material.uniforms.uRadius!.value = breath
@@ -809,10 +800,6 @@ export function createScene(opts: {
       rippleTex.dispose()
       sparkTex.dispose()
       renderer.dispose()
-    },
-    closeBoard() {
-      boardOpen = false
-      morphTarget = 0
     },
   }
 }

@@ -1,6 +1,7 @@
 import './style.css'
 import { createScene } from './scene'
 import { mountBoard } from './blog'
+import { createBoardStore, isOpen } from './board-state'
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
@@ -109,11 +110,15 @@ const lampIEl = document.querySelector<HTMLElement>('#lm-i')!
 const rootStyle = document.documentElement.style
 let lastLampStr = '' // cache so steady-state frames skip redundant DOM writes
 
-const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+// One owner for board / morph state. Scene advances it each frame and opens it
+// on label click; the panel and the lamp pendant react to phase changes.
+const board = createBoardStore()
 
-let sceneApi: ReturnType<typeof createScene> | null = null
+// Pendant up while a board is opening/open — cord retracts, ring sticks to the
+// top edge at full power.
+board.subscribe((s) => pendantEl.classList.toggle('lamp-up', isOpen(s)))
 
-const board = mountBoard({
+mountBoard({
   panel: document.querySelector<HTMLDivElement>('#blog-panel')!,
   list: document.querySelector<HTMLDivElement>('#blog-list')!,
   count: document.querySelector<HTMLSpanElement>('#blog-count')!,
@@ -122,23 +127,13 @@ const board = mountBoard({
   closeBtn: document.querySelector<HTMLButtonElement>('#blog-close')!,
   scene: sceneEl,
   sceneHint,
-  reduceMotion,
-  onMorphIn: () => {
-    // morph state lives inside the scene; the label click triggers it from
-    // there, so this side just needs to know a board has opened. Pull the
-    // pendant up — cord retracts, ring sticks to the top edge at full power.
-    pendantEl.classList.add('lamp-up')
-  },
-  onMorphOut: () => {
-    pendantEl.classList.remove('lamp-up')
-    sceneApi?.closeBoard()
-  },
+  board,
 })
 
-sceneApi = createScene({
+createScene({
   canvas,
   container: sceneEl,
-  onLabelClick: (id) => board.open(id),
+  board,
   onMetrics: ({ r, vol, area, flatten }) => {
     metricREl.textContent = r.toFixed(2)
     metricVolEl.textContent = vol.toFixed(2)

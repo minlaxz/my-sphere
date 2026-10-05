@@ -1,4 +1,5 @@
 import { LABELS, BOARD_TITLES, POSTS, type LabelDef } from './labels'
+import { isOpen, type BoardStore } from './board-state'
 
 const ESCAPE_MAP: Record<string, string> = {
   '&': '&amp;',
@@ -25,12 +26,6 @@ function highlight(text: string, q: string): string {
     .join('')
 }
 
-export type BoardController = {
-  open: (id: string) => void
-  close: () => void
-  isOpen: () => boolean
-}
-
 export function mountBoard(opts: {
   panel: HTMLElement
   list: HTMLElement
@@ -40,13 +35,9 @@ export function mountBoard(opts: {
   closeBtn: HTMLElement
   scene: HTMLElement
   sceneHint: HTMLElement | null
-  onMorphIn: (id: string) => void
-  onMorphOut: () => void
-  reduceMotion: boolean
-}): BoardController {
-  const { panel, list, count, search, titleText, closeBtn, scene, sceneHint } = opts
-  let openId: string | null = null
-  let openTimer: ReturnType<typeof setTimeout> | null = null
+  board: BoardStore
+}): void {
+  const { panel, list, count, search, titleText, closeBtn, scene, sceneHint, board } = opts
 
   function renderPosts(query: string) {
     const q = (query || '').trim().toLowerCase()
@@ -124,47 +115,47 @@ export function mountBoard(opts: {
       '</div>'
   }
 
-  function open(id: string) {
-    if (openId) return
-    const L = LABELS.find((x) => x.id === id)
-    if (!L) return
+  // Phase → DOM. The store owns when; this owns what it looks like.
+  const labelFor = (id: string | null) => LABELS.find((x) => x.id === id)
+
+  function onMorphIn(L: LabelDef) {
     const isBlog = !!L.blog
-    openId = id
-    opts.onMorphIn(id)
     scene.classList.remove('label-hover')
     scene.classList.add('blog-active')
     document.body.classList.add('board-open')
     if (sceneHint) sceneHint.classList.add('hidden')
-    titleText.textContent = BOARD_TITLES[id] || L.text
+    titleText.textContent = BOARD_TITLES[L.id] || L.text
     panel.classList.toggle('is-article', !isBlog)
-    panel.setAttribute('aria-label', isBlog ? 'Blog posts' : BOARD_TITLES[id] || L.text)
+    panel.setAttribute('aria-label', isBlog ? 'Blog posts' : BOARD_TITLES[L.id] || L.text)
     panel.setAttribute('aria-hidden', 'false')
-    if (openTimer) clearTimeout(openTimer)
-    openTimer = setTimeout(
-      () => {
-        panel.classList.add('open')
-        if (isBlog) {
-          search.value = ''
-          renderPosts('')
-        } else {
-          renderArticle(L)
-        }
-        list.scrollTop = 0
-      },
-      opts.reduceMotion ? 60 : 430,
-    )
   }
 
-  function close() {
-    if (!openId) return
-    openId = null
-    if (openTimer) clearTimeout(openTimer)
+  function onReveal(L: LabelDef) {
+    panel.classList.add('open')
+    if (L.blog) {
+      search.value = ''
+      renderPosts('')
+    } else {
+      renderArticle(L)
+    }
+    list.scrollTop = 0
+  }
+
+  function onMorphOut() {
     panel.classList.remove('open')
     panel.setAttribute('aria-hidden', 'true')
     scene.classList.remove('blog-active')
     document.body.classList.remove('board-open')
-    opts.onMorphOut()
   }
+
+  board.subscribe((s) => {
+    const L = labelFor(s.id)
+    if (s.phase === 'morphing-in' && L) onMorphIn(L)
+    else if (s.phase === 'open' && L) onReveal(L)
+    else if (s.phase === 'morphing-out') onMorphOut()
+  })
+
+  const close = () => board.close()
 
   search.addEventListener('input', (e) => renderPosts((e.target as HTMLInputElement).value))
   list.addEventListener('click', (e) => {
@@ -178,12 +169,10 @@ export function mountBoard(opts: {
 
   // Click outside the scene closes the board.
   document.addEventListener('click', (e) => {
-    if (!openId) return
+    if (!isOpen(board.get())) return
     if (!scene.contains(e.target as Node)) close()
   })
   document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && openId) close()
+    if (e.key === 'Escape' && isOpen(board.get())) close()
   })
-
-  return { open, close, isOpen: () => openId !== null }
 }
