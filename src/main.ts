@@ -1,11 +1,6 @@
 import './style.css'
-import { inject } from '@vercel/analytics'
 import { createScene } from './scene'
 import { mountBoard } from './blog'
-
-if (import.meta.env.PROD) {
-  inject()
-}
 
 const app = document.querySelector<HTMLDivElement>('#app')!
 
